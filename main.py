@@ -111,21 +111,21 @@ def main():
     pending_action = None
 
     while True:
-        vorudy = input("پیام شما:")
+        user_message = input("پیام شما:")
 
-        if vorudy == "exit" or vorudy == "خروج":
+        if user_message == "exit" or user_message == "خروج":
             print("goodBy")
             break
 
         if waiting_for_order_id:
-            if vorudy == "لغو" or vorudy == "ولش کن":
+            if user_message == "لغو" or user_message == "ولش کن":
                 waiting_for_order_id = False
                 pending_action = None
                 print("باشه درخواست لغو شد")
                 continue
 
 
-            order_id = extract_order_id(vorudy)
+            order_id = extract_order_id(user_message)
 
             if order_id:
                 if pending_action == "order_status":
@@ -147,11 +147,11 @@ def main():
 
             continue
 
-        intent = detect_intent(vorudy)
+        intent = detect_intent(user_message)
         print("INTENT:", intent)
 
         if intent == "order_status":
-            order_id = extract_order_id(vorudy)
+            order_id = extract_order_id(user_message)
 
             if order_id:
                 status = get_order_status(order_id)
@@ -164,7 +164,7 @@ def main():
 
 
         elif intent == "cancel_order":
-            order_id = extract_order_id(vorudy)
+            order_id = extract_order_id(user_message)
             if order_id:
                 result = cancel_order(order_id)
                 print(result)
@@ -176,7 +176,7 @@ def main():
 
 
         elif intent == "add_order":
-            order_id=extract_order_id(vorudy)
+            order_id=extract_order_id(user_message)
             if order_id:
                 result=add_order(order_id)
                 print(result)
