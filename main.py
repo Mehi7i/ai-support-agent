@@ -35,6 +35,7 @@ def detect_intent(message):
 
 
 def extract_order_id(message):
+    message = message.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))
     match = re.search(r"\b\d{4,8}\b", message)
 
     if match:
