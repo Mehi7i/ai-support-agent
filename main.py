@@ -105,6 +105,26 @@ def get_fact(api_key):
     return None
 
 
+def execute_order_action(order_id, action):
+    if action == "order_status":
+        return get_order_status(order_id)
+
+    elif action == "cancel_order":
+        return cancel_order(order_id)
+
+    elif action == "add_order":
+        return add_order(order_id)
+
+    return None
+
+def handle_order_request(user_message, action):
+    order_id = extract_order_id(user_message)
+
+    if order_id:
+        return execute_order_action(order_id, action)
+
+    return None
+
 def main():
     load_dotenv()
     api_key = os.getenv("API_KEY")
@@ -114,12 +134,12 @@ def main():
     while True:
         user_message = input("پیام شما:")
 
-        if user_message == "exit" or user_message == "خروج":
+        if user_message in ("exit","خروج"):
             print("goodBy")
             break
 
         if waiting_for_order_id:
-            if user_message == "لغو" or user_message == "ولش کن":
+            if  user_message in ("لغو", "ولش کن"):
                 waiting_for_order_id = False
                 pending_action = None
                 print("باشه درخواست لغو شد")
@@ -134,20 +154,11 @@ def main():
             order_id = extract_order_id(user_message)
 
             if order_id:
-                if pending_action == "order_status":
-                    status = get_order_status(order_id)
-                    print(status)
-
-                elif pending_action == "cancel_order":
-                     result = cancel_order(order_id)
-                     print(result)
-
-                elif pending_action == "add_order":
-                    result = add_order(order_id)
-                    print(result)
-                waiting_for_order_id = False
-                pending_action = None
-
+                result = execute_order_action(order_id, pending_action)
+                if result:
+                  print(result)
+                  waiting_for_order_id = False
+                  pending_action = None
             else:
                 print("لطفاً شماره سفارش معتبر وارد کنید.")
 
@@ -157,12 +168,9 @@ def main():
         print("INTENT:", intent)
 
         if intent == "order_status":
-            order_id = extract_order_id(user_message)
-
-            if order_id:
-                status = get_order_status(order_id)
-                print(status)
-
+            result = handle_order_request(user_message, "order_status")
+            if result:
+              print(result)
             else:
                 print("لطفاً شماره سفارش را وارد کنید.")
                 waiting_for_order_id = True
@@ -170,21 +178,19 @@ def main():
 
 
         elif intent == "cancel_order":
-            order_id = extract_order_id(user_message)
-            if order_id:
-                result = cancel_order(order_id)
-                print(result)
+           result = handle_order_request(user_message, "cancel_order")
+           if result:
+              print(result)
 
-            else:
+           else:
                 print("لطفاً شماره سفارش را وارد کنید.")
                 waiting_for_order_id = True
                 pending_action = "cancel_order"
 
 
         elif intent == "add_order":
-            order_id=extract_order_id(user_message)
-            if order_id:
-                result=add_order(order_id)
+            result = handle_order_request(user_message, "add_order")
+            if result:
                 print(result)
             else:
                 print("لطفاً شماره سفارش را وارد کنید.")
