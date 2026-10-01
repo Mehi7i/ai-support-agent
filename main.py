@@ -124,6 +124,11 @@ def main():
                 print("باشه درخواست لغو شد")
                 continue
 
+            if "سفارش" in user_message:
+                waiting_for_order_id = False
+                pending_action = None
+                print("لطفاً درخواست خود را دوباره وارد کنید.")
+                continue
 
             order_id = extract_order_id(user_message)
 
