@@ -1,36 +1,36 @@
 # AI Support Agent
 
-A simple Python-based customer support agent that understands user requests, manages orders, and retrieves facts from an external API.
+A Python-based customer support assistant that uses an AI model to understand user requests, manage orders, and retrieve interesting facts through external APIs.
 
 ## Features
 
-* Detects user intent
-* Checks order status
-* Cancels orders
-* Creates new orders
-* Stores orders in a JSON file
-* Handles missing or corrupted JSON files
-* Supports multi-step conversations
-* Retrieves interesting facts using an external API
-* Handles API errors
-* Uses environment variables for API credentials
+- **AI-powered intent detection** using OpenRouter
+- **Order status lookup** by order ID
+- **Order cancellation** with status validation
+- **Order creation** with duplicate ID validation
+- **Multi-step conversations** for requests that require an order ID
+- **JSON-based storage** for order data
+- **Input validation** for order IDs
+- **Error handling** for API requests
+- **Environment-based configuration** for API credentials
+- **Automated tests** using pytest
 
-## Project Structure
+## Technologies
 
-```text
-ai-support-agent/
-│
-├── main.py
-├── orders.json
-├── requirements.txt
-├── .gitignore
-└── .env
-```
+- Python
+- OpenAI Python SDK
+- OpenRouter API
+- Requests
+- JSON
+- python-dotenv
+- pytest
+- Git & GitHub
 
 ## Requirements
 
-* Python 3.10+
-* An API Ninjas API key for the facts feature
+- Python 3.10 or later
+- An OpenRouter API key for AI-powered intent detection
+- An API Ninjas API key for the facts feature
 
 ## Installation
 
@@ -41,61 +41,91 @@ git clone https://github.com/Mehi7i/ai-support-agent.git
 cd ai-support-agent
 ```
 
-Create a virtual environment:
+Create and activate a virtual environment.
 
-```bash
-python -m venv venv
-```
-
-Activate it on Windows:
+**Windows (PowerShell):**
 
 ```powershell
-venv\Scripts\activate
+python -m venv venv
+venv\Scripts\Activate.ps1
 ```
 
-Install dependencies:
+**macOS / Linux:**
 
 ```bash
-pip install -r requirements.txt
+python3 -m venv venv
+source venv/bin/activate
 ```
 
-## Environment Variables
+Install the dependencies:
 
-Create a `.env` file in the project directory:
+```bash
+python -m pip install -r requirements.txt
+```
+
+## Configuration
+
+Create a `.env` file in the project root directory.
+
+Add your API credentials:
 
 ```env
-API_KEY=your_api_key_here
+OPENROUTER_API_KEY=your_openrouter_api_key
+API_KEY=your_api_ninjas_api_key
 ```
 
-Do not upload the `.env` file to GitHub.
+- `OPENROUTER_API_KEY` is used for AI-powered intent detection.
+- `API_KEY` is used to retrieve facts from API Ninjas.
 
-## Run
+Never commit your `.env` file or expose your API keys publicly.
 
-Start the application with:
+## Run the Application
+
+Start the assistant:
 
 ```bash
 python main.py
 ```
 
+Enter a request in the terminal. Type `exit` or `خروج` to quit.
+
 ## Example
 
 ```text
-پیام شما: میخوام سفارشم رو لغو کنم
-INTENT: cancel_order
+پیام شما: سلام
+سلام! چطور می‌تونم کمکتون کنم؟
 
-پیام شما: 6958
-سفارش 6958 با موفقیت لغو شد.
+پیام شما: پیگیری سفارش 2469
+در حال پردازش
 ```
 
-## Technologies
+The example order ID and its status depend on the contents of `orders.json`.
 
-* Python
-* JSON
-* Requests
-* python-dotenv
-* REST API
-* Git & GitHub
+## Testing
+
+Run the automated test suite:
+
+```bash
+python -m pytest
+```
+
+## Project Structure
+
+```text
+ai-support-agent/
+├── main.py
+├── orders.json
+├── requirements.txt
+├── .env.example
+├── .gitignore
+├── README.md
+└── tests/
+    ├── __init__.py
+    └── test_main.py
+```
+
+The `.env` file and virtual environment should remain local and must not be committed to the repository.
 
 ## Author
 
-Mehi7i
+**Mehi7i**
