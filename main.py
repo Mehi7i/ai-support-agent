@@ -71,7 +71,7 @@ def detect_intent_with_ai(message, api_key):
 
 def extract_order_id(message):
     message = message.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))
-    match = re.search(r"\b\d{4,8}\b", message)
+    match = re.search(r"(?<!\d)\d{4,8}(?!\d)", message)
 
     if match:
         return match.group()
@@ -171,22 +171,7 @@ def execute_order_action(order_id, action):
 
     return None
 
-def handle_order_request(user_message, action):
-    order_id = extract_order_id(user_message)
 
-    if order_id:
-        return execute_order_action(order_id, action)
-
-    return None
-
-def process_order_request(user_message, action):
-    result = handle_order_request(user_message, action)
-
-    if result:
-        print(result)
-        return False
-    print("لطفاً شماره سفارش را وارد کنید.")
-    return True
 
 def detect_intent_ai(client, message):
     valid_intents = {
@@ -251,6 +236,55 @@ unknown
         print(f"خطا در ارتباط با سرویس هوش مصنوعی: {error}")
         return "unknown"
 
+user_states = {}  # user_id -> {"pending_action": ...}
+
+ORDER_INTENTS = ("order_status", "cancel_order", "add_order")
+
+def handle_message(user_id, text, client, api_key):
+    text = text.strip()
+    if not text:
+        return None
+
+    state = user_states.get(user_id)
+    if state:
+        return handle_pending(user_id, text, state)
+
+    intent = detect_intent_ai(client, text)
+
+    if intent in ORDER_INTENTS:
+        order_id = extract_order_id(text)
+        if order_id:
+            return execute_order_action(order_id, intent)
+        user_states[user_id] = {"pending_action": intent}
+        return "لطفاً شماره سفارش را وارد کنید."
+
+    if intent == "fact":
+        return get_fact(api_key) or "الان نتونستم دانستنی پیدا کنم."
+
+    if intent == "greeting":
+        return "سلام! چطور می‌تونم کمکتون کنم؟"
+
+    return "متوجه درخواستت نشدم. لطفاً واضح‌تر بیان کن."
+
+
+def handle_pending(user_id, text, state):
+    if text in ("لغو", "ولش کن"):
+        user_states.pop(user_id)
+        return "باشه، درخواست لغو شد."
+
+    if "سفارش" in text:
+        user_states.pop(user_id)
+        return "لطفاً درخواست خود را دوباره وارد کنید."
+
+    order_id = extract_order_id(text)
+    if not order_id:
+        return "لطفاً شماره سفارش معتبر وارد کنید."
+
+    action = state["pending_action"]
+    user_states.pop(user_id)
+    return execute_order_action(order_id, action)
+
+
 def main():
     load_dotenv()
 
@@ -266,9 +300,6 @@ def main():
         base_url="https://openrouter.ai/api/v1"
     )
 
-    waiting_for_order_id = False
-    pending_action = None
-
     while True:
         try:
             user_message = input("پیام شما: ").strip()
@@ -280,58 +311,9 @@ def main():
                 print("خدانگهدار!")
                 break
 
-            if waiting_for_order_id:
-                if user_message in ("لغو", "ولش کن"):
-                    waiting_for_order_id = False
-                    pending_action = None
-                    print("باشه، درخواست لغو شد.")
-                    continue
-
-                if "سفارش" in user_message:
-                    waiting_for_order_id = False
-                    pending_action = None
-                    print("لطفاً درخواست خود را دوباره وارد کنید.")
-                    continue
-
-                order_id = extract_order_id(user_message)
-
-                if order_id:
-                    result = execute_order_action(
-                        order_id,
-                        pending_action
-                    )
-
-                    if result is not None:
-                        print(result)
-                        waiting_for_order_id = False
-                        pending_action = None
-                else:
-                    print("لطفاً شماره سفارش معتبر وارد کنید.")
-
-                continue
-
-            intent = detect_intent_ai(client, user_message)
-
-            if intent in ("order_status", "cancel_order", "add_order"):
-                waiting_for_order_id = process_order_request(
-                    user_message,
-                    intent
-                )
-
-                if waiting_for_order_id:
-                    pending_action = intent
-
-            elif intent == "fact":
-                fact = get_fact(api_key)
-
-                if fact:
-                    print(fact)
-
-            elif intent == "greeting":
-                print("سلام! چطور می‌تونم کمکتون کنم؟")
-
-            else:
-                print("متوجه درخواستت نشدم. لطفاً واضح‌تر بیان کن.")
+            reply = handle_message("cli", user_message, client, api_key)
+            if reply:
+                print(reply)
 
         except (KeyboardInterrupt, EOFError):
             print("\nخدانگهدار!")
