@@ -5,7 +5,7 @@ from openai import OpenAI
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-from main import handle_message
+from main import handle_message_agent
 
 load_dotenv()
 
@@ -21,8 +21,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     reply = await asyncio.to_thread(
-        handle_message, user_id, text, client, api_key
-    )
+    handle_message_agent, user_id, text, client, api_key
+        )
     if reply:
         await update.message.reply_text(reply)
 

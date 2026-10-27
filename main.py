@@ -284,6 +284,150 @@ def handle_pending(user_id, text, state):
     user_states.pop(user_id)
     return execute_order_action(order_id, action)
 
+# ---------- Agent (tool calling) ----------
+
+DEFAULT_AGENT_MODELS = "google/gemma-4-31b-it:free,nvidia/nemotron-3-super-120b-a12b:free"
+MAX_TOOL_ROUNDS = 4
+MAX_HISTORY = 10
+
+AGENT_SYSTEM_PROMPT = """
+تو دستیار پشتیبانی مشتری یک فروشگاه هستی و فقط فارسی و کوتاه جواب می‌دهی.
+برای بررسی، ثبت یا لغو سفارش فقط از ابزارها استفاده کن و وضعیت سفارش را از خودت نساز.
+اگر کاربر شماره سفارش نداده، از او بپرس و ابزار را صدا نزن.
+فقط وقتی کاربر صریحاً خواست، سفارش را لغو یا ثبت کن.
+اگر پیام به سفارش‌ها ربطی نداشت، مودبانه بگو فقط درباره‌ی سفارش‌ها می‌توانی کمک کنی.
+جواب را فقط به‌صورت متن ساده بنویس، بدون markdown و بدون ستاره.
+نتیجه‌ی ابزار را بدون تغییر معنا به کاربر بگو.
+درباره‌ی موضوعات غیرمرتبط هیچ اطلاعاتی نده و هیچ ادعایی نکن؛ فقط بگو که فقط درباره‌ی سفارش‌ها می‌توانی کمک کنی.
+"""
+
+
+def _order_tool(name, description):
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "شماره سفارش، ۴ تا ۸ رقم",
+                    }
+                },
+                "required": ["order_id"],
+            },
+        },
+    }
+
+
+TOOLS = [
+    _order_tool("get_order_status", "وضعیت یک سفارش را با شماره سفارش برمی‌گرداند."),
+    _order_tool("cancel_order", "یک سفارش را با شماره سفارش لغو می‌کند."),
+    _order_tool("add_order", "یک سفارش جدید با شماره داده‌شده ثبت می‌کند."),
+]
+
+TOOL_FUNCTIONS = {
+    "get_order_status": get_order_status,
+    "cancel_order": cancel_order,
+    "add_order": add_order,
+}
+
+agent_histories = {}  # user_id -> [{"role": ..., "content": ...}]
+
+
+def get_agent_models():
+    raw = os.getenv("OPENROUTER_MODELS", DEFAULT_AGENT_MODELS)
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+def run_tool(name, arguments_json):
+    func = TOOL_FUNCTIONS.get(name)
+    if func is None:
+        return "ابزار نامعتبر است."
+
+    try:
+        args = json.loads(arguments_json or "{}")
+    except json.JSONDecodeError:
+        return "آرگومان‌های ابزار نامعتبر است."
+
+    order_id = str(args.get("order_id", "")).translate(
+        str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
+    )
+    return func(order_id)
+
+
+def call_model(client, messages):
+    last_error = None
+    for model in get_agent_models():
+        try:
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=TOOLS,
+                timeout=30,
+            )
+        except Exception as error:
+            print(f"مدل {model} خطا داد: {error}")
+            last_error = error
+    raise last_error
+
+
+def handle_message_agent(user_id, text, client, api_key=None):
+    text = text.strip()
+    if not text:
+        return None
+
+    history = agent_histories.setdefault(user_id, [])
+    history.append({"role": "user", "content": text})
+
+    messages = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}]
+    messages += history[-MAX_HISTORY:]
+
+    try:
+        for _ in range(MAX_TOOL_ROUNDS):
+            response = call_model(client, messages)
+            message = response.choices[0].message
+
+            if not message.tool_calls:
+                reply = message.content or "متوجه نشدم، لطفاً دوباره بگویید."
+                history.append({"role": "assistant", "content": reply})
+                return reply
+
+            messages.append({
+                "role": "assistant",
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "id": call.id,
+                        "type": "function",
+                        "function": {
+                            "name": call.function.name,
+                            "arguments": call.function.arguments,
+                        },
+                    }
+                    for call in message.tool_calls
+                ],
+            })
+
+            for call in message.tool_calls:
+                result = run_tool(call.function.name, call.function.arguments)
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": result,
+                })
+
+        reply = "نتونستم درخواست رو کامل کنم. لطفاً دوباره امتحان کنید."
+        history.append({"role": "assistant", "content": reply})
+        return reply
+
+    except Exception as error:
+        print(f"Agent failed, falling back: {error}")
+        history.pop()  # پیام کاربر رو از تاریخچه‌ی agent حذف کن
+        return handle_message(user_id, text, client, api_key)
+
 
 def main():
     load_dotenv()
@@ -311,7 +455,7 @@ def main():
                 print("خدانگهدار!")
                 break
 
-            reply = handle_message("cli", user_message, client, api_key)
+            reply = handle_message_agent("cli", user_message, client, api_key)
             if reply:
                 print(reply)
 
