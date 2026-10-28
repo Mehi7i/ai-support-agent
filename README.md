@@ -2,7 +2,7 @@
 
 A Python customer-support assistant powered by an LLM with **tool calling**. The model decides when to look up, cancel, or create an order, and a rule-based fallback keeps the bot working when the AI service is unavailable. It runs in the terminal and as a Telegram bot.
 
-> **Demo:** [Watch a short demo]([ADD_YOUR_VIDEO_LINK_HERE](https://drive.google.com/file/d/1s-nIsdVPPJpeXPFGTC6lqAoaeNz33IEp/view?usp=sharing))
+> **Demo:** [Watch a short demo]([[ADD_YOUR_VIDEO_LINK_HERE](https://drive.google.com/file/d/1s-nIsdVPPJpeXPFGTC6lqAoaeNz33IEp/view?usp=sharing)])
 
 ## Features
 
